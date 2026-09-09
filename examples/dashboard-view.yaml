@@ -1,0 +1,158 @@
+# Example "sections"-type dashboard view for the SpyPoint photo kiosk.
+#
+# If your dashboard is in storage mode (the default), you can't drop this
+# into a file directly - create a new view in the UI, then use its
+# three-dot menu -> "Edit in YAML" and paste this in (everything from
+# "type: sections" down).
+#
+# Adjust:
+#   - camera.spypoint_foto_1 ... _7   -> however many Local File cameras
+#     you created (matches LATEST_COUNT in spypoint_download.py)
+#   - sensor.spypoint_YOUR_CAMERA_*   -> your actual sensor entity IDs
+#     from the official SpyPoint HACS integration (check
+#     Developer Tools -> States, filter "spypoint")
+
+type: sections
+path: spypoint
+title: SpyPoint
+icon: mdi:pine-tree
+sections:
+  - type: grid
+    cards:
+      - type: heading
+        heading: SpyPoint Trail Camera
+        icon: mdi:pine-tree
+        heading_style: title
+      - type: picture-entity
+        entity: camera.spypoint_foto_1
+        name: Latest Photo
+        show_state: false
+        grid_options:
+          columns: 12
+          rows: 7
+      - type: picture-entity
+        entity: camera.spypoint_foto_2
+        show_state: false
+        show_name: false
+        grid_options:
+          columns: 4
+          rows: 5
+      - type: picture-entity
+        entity: camera.spypoint_foto_3
+        show_state: false
+        show_name: false
+        grid_options:
+          columns: 4
+          rows: 5
+      - type: picture-entity
+        entity: camera.spypoint_foto_4
+        show_state: false
+        show_name: false
+        grid_options:
+          columns: 4
+          rows: 5
+      - type: picture-entity
+        entity: camera.spypoint_foto_5
+        show_state: false
+        show_name: false
+        grid_options:
+          columns: 4
+          rows: 5
+      - type: picture-entity
+        entity: camera.spypoint_foto_6
+        show_state: false
+        show_name: false
+        grid_options:
+          columns: 4
+          rows: 5
+      - type: picture-entity
+        entity: camera.spypoint_foto_7
+        show_state: false
+        show_name: false
+        grid_options:
+          columns: 4
+          rows: 5
+  - type: grid
+    cards:
+      - type: heading
+        heading: Camera Status
+        icon: mdi:information-outline
+        heading_style: subtitle
+      - type: gauge
+        entity: sensor.spypoint_YOUR_CAMERA_battery_level
+        name: Battery
+        min: 0
+        max: 100
+        needle: true
+        severity:
+          red: 0
+          yellow: 20
+          green: 40
+        grid_options:
+          columns: 3
+          rows: auto
+      - type: gauge
+        entity: sensor.spypoint_YOUR_CAMERA_cellular_signal_strength
+        name: Signal
+        min: 0
+        max: 100
+        needle: true
+        severity:
+          red: 0
+          yellow: 40
+          green: 70
+        grid_options:
+          columns: 3
+          rows: auto
+      - type: gauge
+        entity: sensor.spypoint_YOUR_CAMERA_sd_card_usage
+        name: SD Card Used
+        min: 0
+        max: 100
+        needle: true
+        severity:
+          green: 0
+          yellow: 70
+          red: 90
+        grid_options:
+          columns: 3
+          rows: auto
+      - type: gauge
+        entity: sensor.spypoint_YOUR_CAMERA_temperature
+        name: Temperature
+        min: -10
+        max: 40
+        needle: true
+        severity:
+          green: -10
+          yellow: 30
+          red: 38
+        grid_options:
+          columns: 3
+          rows: auto
+      - type: tile
+        entity: sensor.spypoint_YOUR_CAMERA_status
+        name: Status
+        grid_options:
+          columns: 3
+          rows: auto
+      - type: tile
+        entity: sensor.spypoint_YOUR_CAMERA_battery_type
+        name: Battery Type
+        grid_options:
+          columns: 3
+          rows: auto
+      - type: tile
+        entity: sensor.spypoint_YOUR_CAMERA_last_update
+        name: Last Update
+        grid_options:
+          columns: 6
+          rows: auto
+      - type: history-graph
+        title: Temperature - 7 Days
+        hours_to_show: 168
+        entities:
+          - sensor.spypoint_YOUR_CAMERA_temperature
+        grid_options:
+          columns: full
+          rows: 5
