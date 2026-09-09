@@ -1,0 +1,31 @@
+# Add this as a new automation (Settings -> Automations -> Edit in YAML),
+# or append it to automations.yaml if you manage automations as a file.
+#
+# Sends a push notification with a photo preview whenever the downloader
+# script drops a new .jpg into the watched folder.
+#
+# Replace notify.mobile_app_YOUR_DEVICE with your own device's notify
+# action (Developer Tools -> Actions -> search "mobile_app").
+
+- id: spypoint_new_photo
+  alias: SpyPoint - New Photo Notification
+  description: Push notification with image preview when a new SpyPoint photo is downloaded
+  triggers:
+  - trigger: event
+    event_type: folder_watcher
+    event_data:
+      event_type: created
+  conditions:
+  - condition: template
+    value_template: "{{ trigger.event.data.path.endswith('.jpg') }}"
+  actions:
+  - action: notify.mobile_app_YOUR_DEVICE
+    data:
+      title: New SpyPoint photo
+      message: Your trail camera just sent a new photo.
+      data:
+        # /media/<X>/foo.jpg on disk -> /media/local/<X>/foo.jpg here.
+        # Authenticated automatically by the companion app, no public
+        # URL required.
+        image: "/media/local/{{ trigger.event.data.path.split('/media/')[1] }}"
+  mode: queued
