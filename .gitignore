@@ -1,0 +1,15 @@
+# credentials - never commit these
+.spypoint_credentials
+*.env
+
+# downloaded photos / local state
+spypoint-photos/
+*.jpg
+*.jpeg
+.downloaded.json
+spypoint_download.log
+
+# python
+spypoint-env/
+__pycache__/
+*.pyc
