@@ -82,8 +82,18 @@ Then add a cron job to run it periodically, e.g. every 30 minutes:
 ```bash
 crontab -e
 # add:
-*/30 * * * * source /home/YOUR_USER/.spypoint_credentials && /home/YOUR_USER/spypoint-env/bin/python3 /home/YOUR_USER/spypoint_download.py
+*/30 * * * * . /home/YOUR_USER/.spypoint_credentials && /home/YOUR_USER/spypoint-env/bin/python3 /home/YOUR_USER/spypoint_download.py
 ```
+
+**Use `.`, not `source`.** Cron runs jobs with `/bin/sh` (usually `dash` on
+Debian/Raspberry Pi OS), not `bash`. `source` is a bash-only builtin and
+doesn't exist in `sh` — with `source` the job fails immediately with
+`sh: 1: source: not found`, before the Python script ever runs. `.` is the
+POSIX-standard equivalent and works the same under both shells. Most fresh
+installs have no mail system configured, so this failure is silent (you'll
+just see `(CRON) info (No MTA installed, discarding output)` in
+`journalctl -u cron`) — it's easy to think the job is running fine when it
+isn't.
 
 ## 2. Mount the photo folder into Home Assistant
 
@@ -182,6 +192,11 @@ Create a new view in the UI, then use its three-dot menu →
 - **`notify.send_message` can't send images (yet).** Use the legacy
   per-device `notify.mobile_app_<device>` action if you need an image
   attachment in the push notification.
+- **`source` in a crontab silently breaks on Debian/Raspberry Pi OS.**
+  Cron runs jobs with `/bin/sh`, not `bash`, and `source` doesn't exist
+  there. Use `.` instead (see step 1) — otherwise every run fails
+  instantly and, with no mail system configured, leaves no visible error
+  at all.
 
 ## Credits
 
