@@ -4,6 +4,8 @@ Download photos from a SpyPoint cellular trail camera and show them as a
 kiosk dashboard in Home Assistant — with a push notification whenever a
 new photo arrives.
 
+![Dashboard screenshot](docs/dashboard-screenshot-blurred.png)
+
 ## Why this exists
 
 The official [SpyPoint HACS integration](https://github.com/happydev-ca/spypoint-home-assistant)
