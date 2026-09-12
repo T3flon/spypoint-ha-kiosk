@@ -1,0 +1,8 @@
+# Dependencies for spypoint_download.py
+# Install with: pip install -r requirements.txt
+#
+# pyspypoint is an unofficial client for the SpyPoint cloud API.
+# requests is used for downloading the photo files themselves.
+
+pyspypoint
+requests
