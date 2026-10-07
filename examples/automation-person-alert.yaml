@@ -1,0 +1,36 @@
+# Optional: alert ONLY when the local AI detects a person.
+#
+# Use this INSTEAD of automation.yaml if you only care about people (e.g.
+# theft protection) and don't want a push for every deer, fox or
+# moving branch. spypoint_download.py copies photos with a detected
+# person into the "personen" subfolder; this automation only reacts to
+# files in that folder.
+#
+# Requires the same Folder Watcher setup as automation.yaml (watching
+# /media/spypoint — Folder Watcher also sees subfolders).
+#
+# Replace notify.mobile_app_YOUR_DEVICE with your own device's notify
+# action (Developer Tools -> Actions -> search "mobile_app").
+
+- id: spypoint_person_detected
+  alias: SpyPoint - Person Detected
+  description: High-priority push with image when the local AI detects a person on a new SpyPoint photo
+  triggers:
+  - trigger: event
+    event_type: folder_watcher
+    event_data:
+      event_type: created
+  conditions:
+  - condition: template
+    value_template: "{{ '/personen/' in trigger.event.data.path and trigger.event.data.path.endswith('.jpg') }}"
+  actions:
+  - action: notify.mobile_app_YOUR_DEVICE
+    data:
+      title: "⚠️ Person detected!"
+      message: Your trail camera spotted a person.
+      data:
+        image: "/media/local/{{ trigger.event.data.path.split('/media/')[1] }}"
+        # Android: deliver immediately, even in doze mode
+        ttl: 0
+        priority: high
+  mode: queued

@@ -13,3 +13,8 @@ spypoint_download.log
 spypoint-env/
 __pycache__/
 *.pyc
+
+# person-detection model (generate it yourself, see README)
+spypoint-models/
+*.onnx
+*.pt

@@ -17,6 +17,8 @@ visible in the SpyPoint app. This project fills that gap with:
 - a Home Assistant setup that turns those photos into camera entities
 - a dashboard view showing the latest photos
 - a push notification (with image preview) whenever a new photo lands
+- optional **person detection** with a small local AI model (no cloud):
+  get a push only when a human is on the photo — e.g. as theft protection
 
 ## Architecture
 
@@ -33,6 +35,11 @@ Docker volume mount  →  /media/spypoint  inside the HA container
       ├─ local_file integration  →  camera.spypoint_foto_1 … _N
       ├─ folder_watcher integration  →  fires on new downloads
       └─ automation  →  push notification with photo attached
+
+optional: spypoint_personen.py (YOLO11n, ONNX, CPU-only)
+      │  checks every NEW photo for people
+      ▼
+copies hits to  spypoint-photos/personen/  →  separate "person" alert
 ```
 
 ## Prerequisites
@@ -50,8 +57,10 @@ Docker volume mount  →  /media/spypoint  inside the HA container
 ```bash
 python3 -m venv ~/spypoint-env
 source ~/spypoint-env/bin/activate
-pip install pyspypoint requests
+pip install -r requirements.txt
 ```
+
+(Without person detection, `pip install pyspypoint requests` is enough.)
 
 Copy [`spypoint_download.py`](spypoint_download.py) to your machine, e.g.
 `~/spypoint_download.py`.
@@ -172,6 +181,77 @@ If your dashboard is in **storage mode** (the default — no `lovelace:`
 key in `configuration.yaml`), you can't just drop in a YAML file.
 Create a new view in the UI, then use its three-dot menu →
 **"Edit in YAML"** and paste the section content in.
+
+## 6. Optional: person detection (theft protection)
+
+A trail camera mostly photographs animals, grass and moving branches. If
+you only want to be alerted when a **person** shows up, the downloader can
+run a small object-detection model on every new photo — entirely locally,
+no cloud service, no PyTorch at runtime.
+
+How it works:
+
+- [`spypoint_personen.py`](spypoint_personen.py) loads
+  [YOLO11n](https://docs.ultralytics.com/models/yolo11/) exported to ONNX
+  (~10 MB) with `onnxruntime` and returns the highest "person" confidence
+  for a photo.
+- `spypoint_download.py` calls it for each **newly downloaded** photo (old
+  photos are never re-checked). Photos at or above `MIN_CONFIDENCE`
+  (default `0.30`) are additionally copied to `spypoint-photos/personen/`.
+- [`examples/automation-person-alert.yaml`](examples/automation-person-alert.yaml)
+  only fires for files in that `personen/` folder.
+- If the module, the model or one of its libraries is missing, the
+  downloader logs an error and keeps downloading as usual.
+
+### Install
+
+1. Put `spypoint_personen.py` in the **same folder** as
+   `spypoint_download.py`.
+2. Install the extra libraries (already in `requirements.txt`):
+   `onnxruntime`, `numpy`, `pillow`.
+3. Create the model file. Ultralytics only ships PyTorch weights, so export
+   them to ONNX once — in a **throwaway venv**, since `ultralytics` pulls in
+   PyTorch (several GB). It doesn't have to be on the target machine; the
+   `.onnx` file is portable.
+
+   ```bash
+   python3 -m venv /tmp/yoloexport
+   /tmp/yoloexport/bin/pip install --extra-index-url https://download.pytorch.org/whl/cpu ultralytics onnx onnxslim
+   cd /tmp && /tmp/yoloexport/bin/yolo export model=yolo11n.pt format=onnx imgsz=640
+   mkdir -p ~/spypoint-models && mv /tmp/yolo11n.onnx ~/spypoint-models/
+   rm -rf /tmp/yoloexport /tmp/yolo11n.pt
+   ```
+
+   On a headless machine, if the export fails on a missing `libGL`,
+   replace OpenCV with the headless build in the export venv:
+   `pip uninstall -y opencv-python && pip install opencv-python-headless`.
+
+   The script looks for `~/spypoint-models/yolo11n.onnx`; set the
+   environment variable `SPYPOINT_MODEL` (e.g. in `~/.spypoint_credentials`)
+   to use a different path.
+
+4. Test it on a few of your own photos:
+
+   ```bash
+   ~/spypoint-env/bin/python3 ~/spypoint_personen.py ~/spypoint-photos/*.jpg
+   ```
+
+   Each line shows `PERSON` or `------`, the confidence and the filename.
+   Adjust `MIN_CONFIDENCE` in `spypoint_personen.py` if needed — on the
+   83 test photos this was tuned with, people scored ≥ 0.32 and empty
+   scenes ≤ 0.11.
+
+5. Import [`examples/automation-person-alert.yaml`](examples/automation-person-alert.yaml)
+   (instead of, or alongside, the "every new photo" automation).
+
+**Performance:** on a Raspberry Pi 5 one photo takes well under a second.
+The script limits `onnxruntime` to 2 threads so it doesn't starve Home
+Assistant on the same machine.
+
+**Model license:** YOLO11 weights are published by Ultralytics under
+AGPL-3.0 (commercial licenses available). The model is **not** included
+in this repository; you download and export it yourself. This project's
+own code stays MIT.
 
 ## Known pitfalls (things that bit us building this)
 

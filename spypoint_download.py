@@ -11,6 +11,11 @@ Pflegt zusätzlich einen Unterordner "latest" mit den 7 neuesten Fotos unter
 festen Dateinamen (latest_1.jpg = neuestes ... latest_7.jpg), damit feste
 local_file-Kamera-Entities in Home Assistant darauf zeigen können.
 
+Optional: Personen-Erkennung. Liegt spypoint_personen.py neben diesem Script
+und ist das YOLO-Modell vorhanden, wird jedes neue Foto lokal auf Menschen
+geprüft; Treffer werden zusätzlich nach "personen/" kopiert. Fehlt das Modul
+oder das Modell, läuft der Download ganz normal weiter.
+
 Gedacht zum Ausführen per Cronjob (z.B. alle 30 Minuten). Die Benachrichtigung
 bei neuen Fotos übernimmt eine Home-Assistant-Automation (folder_watcher),
 nicht dieses Script.
@@ -23,7 +28,7 @@ Umgebungsvariablen übergeben:
 Installation (auf dem Pi):
     python3 -m venv ~/spypoint-env
     source ~/spypoint-env/bin/activate
-    pip install pyspypoint requests
+    pip install -r requirements.txt
 """
 
 import hashlib
@@ -58,6 +63,10 @@ PHOTO_LIMIT = 50
 DOWNLOADED_LOG = DOWNLOAD_DIR / ".downloaded.json"
 
 LOG_FILE = DOWNLOAD_DIR / "spypoint_download.log"
+
+# Fotos, auf denen die KI einen Menschen erkennt, landen zusaetzlich hier.
+# Nur dieser Ordner loest in Home Assistant eine Push-Warnung aus (Diebstahlschutz).
+PERSONEN_DIR = DOWNLOAD_DIR / "personen"
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -149,6 +158,32 @@ def update_latest(log: logging.Logger) -> None:
     log.info("Latest-Ordner aktualisiert (%d von %d Plätzen befüllt).", min(len(newest), LATEST_COUNT), LATEST_COUNT)
 
 
+def check_personen(new_files: list, log: logging.Logger) -> None:
+    """Prueft neu heruntergeladene Fotos auf Menschen (lokale KI, siehe
+    spypoint_personen.py) und kopiert Treffer nach PERSONEN_DIR. Fehler hier
+    duerfen den Download nie stoppen."""
+    if not new_files:
+        return
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import spypoint_personen
+    except Exception as e:
+        log.error("Personen-Erkennung nicht verfuegbar: %s", e)
+        return
+    PERSONEN_DIR.mkdir(parents=True, exist_ok=True)
+    for path in new_files:
+        try:
+            conf = spypoint_personen.person_confidence(path)
+        except Exception as e:
+            log.error("Personen-Erkennung fehlgeschlagen fuer %s: %s", path.name, e)
+            continue
+        if conf >= spypoint_personen.MIN_CONFIDENCE:
+            shutil.copy2(path, PERSONEN_DIR / path.name)
+            log.warning("PERSON erkannt (%.2f): %s", conf, path.name)
+        else:
+            log.info("Keine Person (%.2f): %s", conf, path.name)
+
+
 def main() -> int:
     log = setup_logging()
 
@@ -183,6 +218,7 @@ def main() -> int:
 
     downloaded = load_downloaded(log)
     new_count = 0
+    new_files = []
 
     for photo in photos:
         try:
@@ -208,11 +244,14 @@ def main() -> int:
                 f.write(resp.content)
             downloaded.add(filename)
             new_count += 1
+            new_files.append(filepath)
             log.info("Heruntergeladen: %s", filepath.name)
         except Exception as e:
             log.error("Download fehlgeschlagen für %s: %s", url, e)
 
     save_downloaded(downloaded)
+
+    check_personen(new_files, log)
 
     # "latest"-Ordner erst NACH dem Download-Durchlauf aktualisieren, damit
     # er immer die tatsächlich neuesten 7 Fotos enthält.
